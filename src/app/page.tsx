@@ -1,5 +1,10 @@
 import Link from "next/link";
-import { Leaf, BarChart3, Upload, Calculator, ArrowRight, Globe, Shield, Zap } from "lucide-react";
+import {
+  Leaf,
+  Upload,
+  Calculator,
+  ArrowRight,
+} from "lucide-react";
 
 export default function LandingPage() {
   return (
@@ -11,7 +16,9 @@ export default function LandingPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white">
               <Leaf className="h-5 w-5" />
             </div>
-            <span className="text-lg font-bold tracking-tight">Metropolia MRV</span>
+            <span className="text-lg font-bold tracking-tight">
+              Metropolia MRV
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <Link
@@ -32,11 +39,14 @@ export default function LandingPage() {
             <h1 className="text-5xl md:text-7xl font-bold tracking-tighter leading-[1.1] mb-8 text-foreground">
               Simplifying <br />
               Transport Emissions <br />
-              <span className="text-emerald-600 dark:text-emerald-400">for Metropolia.</span>
+              <span className="text-emerald-600 dark:text-emerald-400">
+                for Metropolia.
+              </span>
             </h1>
 
             <p className="text-xl md:text-2xl text-muted-foreground leading-relaxed max-w-2xl mb-12 font-medium">
-              A comprehensive platform to calculate, consolidate, and report carbon footprints across road, rail, sea, and aviation sectors.
+              A comprehensive platform to calculate, consolidate, and report
+              carbon footprints across road, rail, sea, and aviation sectors.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-6 items-start">
@@ -68,9 +78,13 @@ export default function LandingPage() {
       <section className="mx-auto max-w-6xl px-6 py-24 md:py-32">
         <div className="grid md:grid-cols-2 gap-16 md:gap-24 items-center">
           <div>
-            <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">Built for clarity.</h2>
+            <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+              Built for clarity.
+            </h2>
             <p className="text-lg text-muted-foreground leading-relaxed mb-8">
-              We moved away from fragmented spreadsheets. This platform provides a single source of truth for the National Transport Authority, adhering stringently to WRI standards.
+              We moved away from fragmented spreadsheets. This platform provides
+              a single source of truth for the National Transport Authority,
+              adhering stringently to WRI standards.
             </p>
             <ul className="space-y-6">
               <li className="flex gap-4 items-start">
@@ -78,8 +92,13 @@ export default function LandingPage() {
                   <Upload className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-foreground text-lg">Smart Data Import</h4>
-                  <p className="text-muted-foreground mt-1">Easily drop XLSX, XLS, or CSV files. The system auto-maps columns based on sheet names.</p>
+                  <h4 className="font-semibold text-foreground text-lg">
+                    Smart Data Import
+                  </h4>
+                  <p className="text-muted-foreground mt-1">
+                    Easily drop XLSX, XLS, or CSV files. The system auto-maps
+                    columns based on sheet names.
+                  </p>
                 </div>
               </li>
               <li className="flex gap-4 items-start">
@@ -87,8 +106,13 @@ export default function LandingPage() {
                   <Calculator className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-foreground text-lg">Automated Calculation</h4>
-                  <p className="text-muted-foreground mt-1">Applies official WRI emission factors instantly across all transport modes.</p>
+                  <h4 className="font-semibold text-foreground text-lg">
+                    Automated Calculation
+                  </h4>
+                  <p className="text-muted-foreground mt-1">
+                    Applies official WRI emission factors instantly across all
+                    transport modes.
+                  </p>
                 </div>
               </li>
             </ul>
