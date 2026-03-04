@@ -3,10 +3,9 @@
 import React, { useRef, useState } from "react";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { UploadCloud, FileSpreadsheet, CheckCircle2, XCircle } from "lucide-react";
 import type { EmissionRecord } from "@/types/emission";
+import { parseSheetRows } from "@/utils/parse-workbook";
 
 // ========================
 // Props
@@ -20,12 +19,9 @@ interface DataUploaderProps {
 
 type UploadStatus = "idle" | "success" | "error";
 
-// ========================
-// Helpers — map a raw row object to an EmissionRecord
-// ========================
-function rowToRecord(row: Record<string, string>, idx: number): EmissionRecord {
+function csvRowToRecord(row: Record<string, string>, idx: number): EmissionRecord {
     return {
-        id: `file-${idx}`,
+        id: `csv-${idx}`,
         sector: (row.Sector as EmissionRecord["sector"]) || "Road",
         category: row.Category || "Unknown",
         energyConsumption: parseFloat(row.EnergyConsumption) || 0,
@@ -37,7 +33,7 @@ function rowToRecord(row: Record<string, string>, idx: number): EmissionRecord {
 // ========================
 // Component
 // ========================
-export default function DataUploader({
+export function DataUploader({
     onDataParsed,
     onLoadMock,
     onClear,
@@ -49,14 +45,13 @@ export default function DataUploader({
     const [fileName, setFileName] = useState<string | null>(null);
     const [recordCount, setRecordCount] = useState(0);
 
-    // ---- CSV parsing (via PapaParse) ----
     const parseCsv = (file: File) => {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
             complete: (results) => {
                 try {
-                    const parsed = (results.data as Record<string, string>[]).map(rowToRecord);
+                    const parsed = (results.data as Record<string, string>[]).map(csvRowToRecord);
                     onDataParsed(parsed);
                     setRecordCount(parsed.length);
                     setStatus("success");
@@ -68,7 +63,6 @@ export default function DataUploader({
         });
     };
 
-    // ---- XLSX parsing (via SheetJS) ----
     const parseXlsx = (file: File) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -76,23 +70,22 @@ export default function DataUploader({
                 const data = new Uint8Array(e.target?.result as ArrayBuffer);
                 const workbook = XLSX.read(data, { type: "array" });
 
-                // Combine all sheets into one consolidated array
                 const allRecords: EmissionRecord[] = [];
                 let globalIdx = 0;
 
                 workbook.SheetNames.forEach((sheetName) => {
                     const sheet = workbook.Sheets[sheetName];
-                    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, {
+                    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
                         defval: "",
                     });
-                    rows.forEach((row) => {
-                        allRecords.push(rowToRecord(row, globalIdx++));
-                    });
+                    const parsed = parseSheetRows(rows, sheetName, globalIdx);
+                    allRecords.push(...parsed);
+                    globalIdx += rows.length;
                 });
 
                 onDataParsed(allRecords);
                 setRecordCount(allRecords.length);
-                setStatus("success");
+                setStatus(allRecords.length > 0 ? "success" : "error");
             } catch {
                 setStatus("error");
             }
@@ -101,114 +94,104 @@ export default function DataUploader({
         reader.readAsArrayBuffer(file);
     };
 
-    // ---- Unified handler ----
     const handleFile = (file: File) => {
-        setFileName(file.name);
         setStatus("idle");
+        setFileName(file.name);
+        setRecordCount(0);
 
         const ext = file.name.split(".").pop()?.toLowerCase();
-        if (ext === "csv") {
-            parseCsv(file);
-        } else if (ext === "xlsx" || ext === "xls") {
-            parseXlsx(file);
-        } else {
-            setStatus("error");
-        }
-    };
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) handleFile(file);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-    };
-
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-        const file = e.dataTransfer.files?.[0];
-        if (file) handleFile(file);
+        if (ext === "csv") parseCsv(file);
+        else if (ext === "xlsx" || ext === "xls") parseXlsx(file);
+        else setStatus("error");
     };
 
     return (
-        <Card
-            className={`shadow-sm transition-colors ${isDragging ? "border-emerald-500 bg-emerald-500/5" : ""
-                }`}
-            onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-            }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-        >
-            <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold">Data Import</CardTitle>
-                <p className="text-xs text-muted-foreground">
-                    Supports <strong>.csv</strong>, <strong>.xlsx</strong>, and <strong>.xls</strong> files
-                </p>
-            </CardHeader>
-            <CardContent>
-                <div className="flex flex-col items-center text-center py-6 border-2 border-dashed rounded-lg border-border bg-muted/30">
-                    <UploadCloud
-                        className={`h-10 w-10 mb-3 transition-colors ${isDragging ? "text-emerald-500" : "text-muted-foreground/40"
-                            }`}
-                    />
-                    <p className="text-sm font-medium text-foreground mb-1">
-                        {isDragging ? "Drop your file here" : "Drag & drop a file"}
-                    </p>
-                    <p className="text-xs text-muted-foreground mb-4">
-                        CSV or Excel — or click below to browse
-                    </p>
+        <div className="rounded-3xl bg-white dark:bg-card p-6 sm:p-8 shadow-sm ring-1 ring-border/50 h-full flex flex-col">
+            <div className="mb-6">
+                <h3 className="text-xl font-bold tracking-tight text-foreground">Import Data</h3>
+                <p className="text-sm text-muted-foreground mt-1">Accepts raw CSV and WRI Excel files</p>
+            </div>
 
-                    <div className="flex gap-3 flex-wrap justify-center">
-                        <div className="relative">
-                            <Button variant="outline" size="sm">
-                                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
-                                Browse Files
-                            </Button>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept=".csv,.xlsx,.xls"
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                onChange={handleFileChange}
-                            />
-                        </div>
-                        <Button size="sm" onClick={onLoadMock}>
-                            Load Mock Data
-                        </Button>
-                        {hasData && (
-                            <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => {
-                                    onClear();
-                                    setStatus("idle");
-                                    setFileName(null);
-                                    setRecordCount(0);
-                                }}
-                            >
-                                Clear
-                            </Button>
-                        )}
+            <input
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFile(file);
+                }}
+            />
+
+            <div
+                onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) handleFile(file);
+                }}
+                className={`flex-1 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition-all ${isDragging
+                        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10"
+                        : "border-muted-foreground/25 hover:border-emerald-500/50 hover:bg-muted/50"
+                    }`}
+            >
+                <div className="mb-4 rounded-full bg-emerald-100 p-4 dark:bg-emerald-900/30">
+                    <UploadCloud className="h-8 w-8 text-emerald-600" />
+                </div>
+                <p className="font-semibold text-foreground text-base">Drag & drop a file here</p>
+                <p className="mt-1 text-sm text-muted-foreground">or click below to browse your computer</p>
+
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 hover:shadow-md active:scale-95"
+                    >
+                        Browse Files
+                    </button>
+                    {!hasData && (
+                        <button
+                            onClick={onLoadMock}
+                            className="rounded-full bg-muted px-5 py-2.5 text-sm font-semibold text-foreground transition-all hover:bg-muted/80 active:scale-95"
+                        >
+                            Load Demo Dataset
+                        </button>
+                    )}
+                    {hasData && (
+                        <button
+                            onClick={onClear}
+                            className="rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 px-5 py-2.5 text-sm font-semibold transition-all hover:bg-rose-200 dark:hover:bg-rose-900/50 active:scale-95"
+                        >
+                            Clear Data
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {status !== "idle" && fileName && (
+                <div
+                    className={`mt-4 flex items-start gap-3 rounded-2xl p-4 text-sm ${status === "success"
+                            ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-400"
+                            : "bg-rose-50 text-rose-900 dark:bg-rose-500/10 dark:text-rose-400"
+                        }`}
+                >
+                    {status === "success" ? (
+                        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                    ) : (
+                        <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+                    )}
+                    <div>
+                        <p className="font-semibold">{status === "success" ? "Upload Successful" : "Upload Failed"}</p>
+                        <p className="mt-1 break-all opacity-80">
+                            {fileName} {status === "success" && `— processed ${recordCount} records`}
+                        </p>
                     </div>
                 </div>
-
-                {/* Status feedback */}
-                {status === "success" && fileName && (
-                    <div className="mt-3 flex items-center gap-2 text-sm text-emerald-600">
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span>
-                            Loaded <strong>{fileName}</strong> — {recordCount} record(s)
-                        </span>
-                    </div>
-                )}
-                {status === "error" && (
-                    <div className="mt-3 flex items-center gap-2 text-sm text-destructive">
-                        <XCircle className="h-4 w-4" />
-                        <span>Failed to parse file. Supported: .csv, .xlsx, .xls</span>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+            )}
+        </div>
     );
 }

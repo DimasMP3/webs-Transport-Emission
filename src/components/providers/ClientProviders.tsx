@@ -1,23 +1,35 @@
 "use client";
 
 import React from "react";
+import { usePathname } from "next/navigation";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
-import Sidebar from "@/components/layout/Sidebar";
+import Navbar from "@/components/layout/Navbar";
 
 /**
  * Client-side providers & persistent layout shell.
- * Wraps every page with the theme context and sidebar navigation.
+ * Shows top Navbar only on /dashboard/* routes.
+ * Landing page (/) gets a clean, full-width layout.
  */
 export function ClientProviders({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname();
+    const isDashboard =
+        pathname.startsWith("/dashboard") ||
+        pathname.startsWith("/calculator") ||
+        pathname.startsWith("/reports") ||
+        pathname.startsWith("/import");
+
     return (
         <ThemeProvider>
-            <div className="flex min-h-screen">
-                <Sidebar />
-                {/* Main content area — offset by sidebar width */}
-                <main className="flex-1 ml-16 lg:ml-56 transition-[margin] duration-200">
-                    {children}
-                </main>
-            </div>
+            {isDashboard ? (
+                <div className="flex min-h-screen flex-col bg-[#F9FAFB] dark:bg-black">
+                    <Navbar />
+                    <main className="flex-1 w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 md:py-12 transition-all">
+                        {children}
+                    </main>
+                </div>
+            ) : (
+                <>{children}</>
+            )}
         </ThemeProvider>
     );
 }

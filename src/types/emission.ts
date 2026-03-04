@@ -44,3 +44,11 @@ export interface SectorEmission {
     name: Sector;
     co2: number;
 }
+
+/** Mapping warna untuk setiap sektor (digunakan oleh Recharts) */
+export const SECTOR_COLORS: Record<Sector, string> = {
+    Road: "#3b82f6",      // Biru
+    Rail: "#10b981",      // Hijau Emerald
+    Sea: "#f59e0b",       // Oranye/Amber
+    Aviation: "#8b5cf6",  // Ungu
+};
